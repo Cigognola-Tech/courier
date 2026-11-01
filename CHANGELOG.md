@@ -1,3 +1,28 @@
+## v26.3.67 (2026-10-29)
+ * Stop writing contact ticket_count
+
+## v26.3.66 (2026-10-28)
+ * Pass the contact's email to the webchat service with sent messages
+ * Update dependencies
+
+## v26.3.65 (2026-10-22)
+ * Pass the channel to RespondMsgs and RespondStatuses so handlers can answer an empty batch
+ * Count contacts matched by another reported URN and reported URNs found addable
+ * Update vkutil to v0.30.0 so Valkey connections have timeouts
+
+## v26.3.64 (2026-10-20)
+ * Check ownership of other URNs a request reports before asking mailroom to append them
+ * Remove leftover webchat code now that chip is its provider
+
+## v26.3.63 (2026-10-19)
+ * Rename the WebChat channel type's code to CHP
+ * Slim the WebChat handler to the webchat service contract
+
+## v26.3.62 (2026-10-19)
+ * Collect WhatsApp BSUIDs from Twilio delivery reports
+ * Keep handling a provider's request when it hangs up, rather than failing what it sent
+ * Update to latest gocommon
+
 ## v26.3.61 (2026-10-14)
  * Add webchat endpoint for clients to report messages as delivered or read
  * Ignore status updates that don't change a message once it has 25 channel logs

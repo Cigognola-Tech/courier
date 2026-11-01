@@ -20,7 +20,7 @@ type Event interface {
 // HandleFunc is the raw form of a route: it owns the whole exchange, writing the response itself and
 // returning the events it created. Routes that receive events don't implement this directly - they register
 // a ReceiveFunc with AddReceive and the seam handles the exchange for them - so this is the form for routes
-// that aren't receiving anything: verification handshakes, CORS preflights, contact registration.
+// that aren't receiving anything: verification handshakes, contact registration.
 // The server takes care of looking up the channel by UUID before passing it to this function.
 // Errors in format of the request or by the caller should be handled and logged internally. Errors in
 // execution or in courier itself should be passed back.
@@ -49,8 +49,11 @@ type Handler interface {
 	SendableEvents(*models.Channel) map[string]time.Duration
 	SendEvent(context.Context, *models.Channel, events.Event, *models.ChannelLog) error
 
-	RespondStatuses(context.Context, http.ResponseWriter, []*models.StatusUpdate) error
-	RespondMsgs(context.Context, http.ResponseWriter, []*models.MsgIn) error
+	// RespondStatuses and RespondMsgs answer a request handled as that kind, with what was accepted from it. A
+	// handler whose provider demands a particular body overrides them, and the channel is there for one whose
+	// body is configured per channel - the batch may be empty, if everything in the request was dropped.
+	RespondStatuses(context.Context, http.ResponseWriter, *models.Channel, []*models.StatusUpdate) error
+	RespondMsgs(context.Context, http.ResponseWriter, *models.Channel, []*models.MsgIn) error
 	RespondError(context.Context, http.ResponseWriter, error) error
 	RespondIgnored(context.Context, http.ResponseWriter, string) error
 }

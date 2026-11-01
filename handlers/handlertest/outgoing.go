@@ -37,6 +37,7 @@ type OutgoingMsg struct {
 	Origin               models.MsgOrigin      `json:"origin,omitempty"`
 	ContactLastSeenOn    *time.Time            `json:"contact_last_seen_on,omitempty"`
 	ContactOtherURNs     []urns.URN            `json:"contact_other_urns,omitempty"`
+	ContactEmail         string                `json:"contact_email,omitempty"`
 }
 
 // builds the actual message to send on the given channel
@@ -46,7 +47,7 @@ func (m *OutgoingMsg) build(ch *models.Channel) *models.MsgOut {
 		origin = m.Origin
 	}
 
-	contact := &models.ContactReference{ID: 100, UUID: "a984069d-0008-4d8c-a772-b14a8a6acccc", LastSeenOn: m.ContactLastSeenOn, OtherURNs: m.ContactOtherURNs}
+	contact := &models.ContactReference{ID: 100, UUID: "a984069d-0008-4d8c-a772-b14a8a6acccc", LastSeenOn: m.ContactLastSeenOn, OtherURNs: m.ContactOtherURNs, Email: m.ContactEmail}
 
 	msg := &models.MsgOut{
 		OrgID_:                ch.OrgID(),
@@ -86,7 +87,7 @@ type OutgoingCase struct {
 	ExternalIDs []string           `json:"external_ids,omitempty"`
 	Error       *SendErrorInfo     `json:"error,omitempty"`
 	LogErrors   []*svclogs.Error   `json:"log_errors"`
-	NewURN      urns.URN           `json:"new_urn,omitempty"` // the URN of the contact_changed task queued, if any
+	OtherURNs   []urns.URN         `json:"other_urns,omitempty"` // URNs the provider reported for the recipient
 }
 
 // OutgoingOptions are the options for running a file of outgoing cases
@@ -142,12 +143,6 @@ func RunOutgoingTests(t *testing.T, ch *models.Channel, newFn channels.NewHandle
 			require.NotNil(t, tc.Msg, "case has no msg")
 			msg := tc.Msg.build(ch)
 
-			// drop any tasks a previous case queued for this contact so we see only this case's
-			rc := rt.VK.Get()
-			_, err := rc.Do("DEL", contactQueueKey(ch, msg))
-			rc.Close()
-			require.NoError(t, err)
-
 			mockHTTP := setCaseTransport(client, tc.HTTPMocks)
 
 			clog := models.NewChannelLogForSend(msg, handler.RedactValues(ch))
@@ -162,7 +157,7 @@ func RunOutgoingTests(t *testing.T, ch *models.Channel, newFn channels.NewHandle
 			actual.ExternalIDs = res.ExternalIDs()
 			actual.Error = newSendErrorInfo(serr)
 			actual.LogErrors = clog.Errors
-			actual.NewURN = ""
+			actual.OtherURNs = res.OtherURNs()
 
 			if mockHTTP != nil {
 				assert.False(t, mockHTTP.HasUnused(), "unused HTTP mocks")
@@ -170,16 +165,6 @@ func RunOutgoingTests(t *testing.T, ch *models.Channel, newFn channels.NewHandle
 				for _, r := range mockHTTP.Requests() {
 					actual.Requests = append(actual.Requests, captureRequest(r))
 				}
-			}
-
-			// simulate the sender completing the send so send results (e.g. new URNs) are processed
-			status := models.NewStatusUpdate(ch, msg.UUID(), models.MsgStatusWired, clog)
-			models.OnSendComplete(ctx, rt, msg, status, res.NewURN(), clog)
-
-			newURNs := queuedContactChangedURNs(t, rt, ch, msg)
-			require.LessOrEqual(t, len(newURNs), 1, "more than one contact_changed task queued")
-			if len(newURNs) > 0 {
-				actual.NewURN = newURNs[0]
 			}
 
 			AssertChannelLogRedaction(t, clog, opts.CheckRedacted)
