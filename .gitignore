@@ -3,7 +3,10 @@
 *.a
 *.so
 *~
-deploy
+# Ignore local deploy artifacts; keep EB Dockerrun templates tracked
+deploy/*
+!deploy/eb/
+!deploy/eb/**
 fabric
 fabfile.py
 fabfile.pyc
